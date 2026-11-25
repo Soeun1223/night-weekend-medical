@@ -1,0 +1,13 @@
+{
+  "population_base_month": "2026.10",
+  "population_total": 51075282,
+  "collected_at": "2026-11-25",
+  "hospitals_raw": 79066,
+  "hospitals_after_kind_filter": 78897,
+  "hospitals_unmatched_region": 9,
+  "invalid_time_cells": 63,
+  "emergency_raw": 530,
+  "emergency_unmatched_region": 0,
+  "facilities": 78888,
+  "emergency": 530
+}
