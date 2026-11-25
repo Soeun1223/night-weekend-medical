@@ -4,7 +4,7 @@
 
 Streamlit 대시보드입니다. 지역(시도·시군구), 요일, 시각, 병·의원 종류를 바꾸면 숫자와 차트가 함께 바뀝니다.
 
-- 배포 주소: (Streamlit Community Cloud 주소를 여기에 적기)
+- 배포 주소: https://night-weekend-medical.streamlit.app
 - 실행: `python -m pip install -r requirements.txt` → `python -m streamlit run app.py`
 
 ## 차트
