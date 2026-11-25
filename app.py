@@ -1,4 +1,4 @@
-"""밤이나 주말에 아프면, 우리 동네에서 치료받을 수 있을까?
+"""밤이나 토요일에 아프면, 우리 동네에서 치료받을 수 있을까?
 
 데이터는 data/ 의 CSV만 읽는다(API 키 불필요).
   facilities.csv  국립중앙의료원 전국 병·의원 찾기 서비스 (요일별 운영 시간)
@@ -13,7 +13,7 @@ import plotly.express as px
 import streamlit as st
 
 HERE = Path(__file__).parent
-st.set_page_config(page_title="밤·주말 우리 동네 의료", layout="wide")
+st.set_page_config(page_title="밤·토요일 우리 동네 의료", layout="wide")
 
 DAYS = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일"]  # 분석에 쓰는 요일 (dutyTime1~6)
 ALL_DAYS = DAYS + ["일요일", "공휴일"]  # dutyTime1~8
@@ -76,7 +76,7 @@ kinds = st.sidebar.multiselect("병·의원 종류", fac_all["kind"].value_count
                                default=["의원", "병원", "종합병원"])
 st.sidebar.caption(f"기관 수 {meta['collected_at']} · 인구 {meta['population_base_month']}")
 
-st.title("밤이나 주말에 아프면, 우리 동네에서 치료받을 수 있을까?")
+st.title("밤이나 토요일에 아프면, 우리 동네에서 치료받을 수 있을까?")
 st.caption("평일 밤과 토요일을 기준으로, 운영 중인 병·의원과 응급의료기관이 인구 대비 얼마나 되는지 비교합니다. "
            "일요일·공휴일은 운영 시간 자료가 부족해 제외했습니다.")
 
