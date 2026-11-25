@@ -211,6 +211,7 @@ else:
                          color_discrete_map={"운영 중 병·의원": BLUE, "응급의료기관": ORANGE},
                          hover_data={"kind": True, "addr": True, "lat": False, "lon": False, "크기": False, "구분": False},
                          center=center, zoom=zoom, map_style="open-street-map")
+    fig.update_layout(map_bounds=dict(west=123.5, east=132.5, south=32.5, north=39.0))  # 한국 밖으로는 이동·축소 못 하게
     st.plotly_chart(tidy(fig, 520), use_container_width=True)
 
 
