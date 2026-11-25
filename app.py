@@ -284,7 +284,8 @@ if len(view):
             hovertemplate="<b>%{text}</b> (%{customdata[0]})<br>%{customdata[1]}<extra></extra>"))
     else:
         fig.add_trace(go.Densitymap(
-            lat=view["lat"], lon=view["lon"], radius=12, colorscale="Blues", showscale=False,
+            lat=view["lat"], lon=view["lon"], radius=14, showscale=False,
+            colorscale=[[0, "rgba(120,170,230,0)"], [0.25, "rgba(70,130,220,0.65)"], [1, "rgba(15,60,150,0.95)"]],
             name="운영 중 병·의원 밀도", hoverinfo="skip", showlegend=True))
 if len(emg_scope):
     fig.add_trace(go.Scattermap(
@@ -300,7 +301,7 @@ else:
     span = max(hi["lat"] - lo["lat"], (hi["lon"] - lo["lon"]) * 0.8, 0.02)
     center = dict(lat=float(pts["lat"].median()), lon=float(pts["lon"].median()))
     zoom = float(np.clip(8.3 - np.log2(span), 6, 13))
-fig.update_layout(map=dict(style="carto-positron", center=center, zoom=zoom))
+fig.update_layout(map=dict(style="open-street-map", center=center, zoom=zoom))
 show_chart(style(fig, 520))
 
 tab1, tab2 = st.tabs([f"운영 중 병·의원 {len(view):,}곳", f"응급의료기관 {len(emg_scope):,}곳"])
