@@ -166,11 +166,15 @@ with right:
 left, right = st.columns([3, 2])
 with left:
     st.subheader(f"{scope_name}: 언제 문을 여는 곳이 많을까")
-    st.caption("월~토 요일·시각별로 운영 중인 병·의원 수 ÷ 인구 × 10만 (일요일·공휴일 제외)")
-    grid = pd.DataFrame([[is_open(scope_fac, d, h).sum() / s_pop * 100000 for h in range(24)] for d in range(1, 7)],
-                        index=DAYS, columns=list(range(24)))
-    fig = px.imshow(grid, color_continuous_scale="Blues", aspect="auto",
-                    labels=dict(x="시각(시)", y="", color="10만 명당"))
+    st.caption("요일별 선(월~토) · 시각별로 운영 중인 병·의원 수 ÷ 인구 × 10만 · 굵은 선 = 고른 요일")
+    hours = pd.DataFrame([{"요일": DAYS[d - 1], "시각": h, "10만 명당": is_open(scope_fac, d, h).sum() / s_pop * 100000}
+                          for d in range(1, 7) for h in range(24)])
+    fig = px.line(hours, x="시각", y="10만 명당", color="요일", markers=True)
+    fig.update_traces(opacity=0.45, line_width=2)
+    fig.update_traces(selector=dict(name=day_name), opacity=1, line_width=4)
+    fig.update_xaxes(dtick=3, ticksuffix="시", title="")
+    fig.update_yaxes(rangemode="tozero", title="인구 10만 명당 (곳)")
+    fig.update_layout(legend=dict(title=None))
     st.plotly_chart(tidy(fig, 330), use_container_width=True)
 with right:
     st.subheader("요일별 운영 시간 등록률")
