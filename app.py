@@ -177,15 +177,9 @@ with right:
     st.caption(f"{level}별 · 낮은 곳부터 · 점선은 전국")
     st.plotly_chart(rate_bar("open_rate", "n_open", BLUE, BLUE_LIGHT, nat_open_rate), use_container_width=True)
 
-# ---------------------------------------------------------------- 응급의료기관이 없는 지역: 가장 가까운 곳까지의 거리
+# ---------------------------------------------------------------- 응급의료기관이 없는 지역: 가장 가까운 곳 계산 (표시는 맨 아래)
 near = nearest_er(sc[sc["n_er"] == 0])
 near_shown = sigungu != "전체" and len(near) == 1
-st.subheader("응급의료기관이 없는 지역은 어디가 가까울까")
-if near.empty:
-    st.caption("선택한 범위의 시군구에는 모두 응급의료기관이 있습니다.")
-else:
-    st.caption("병·의원 위치의 중앙에서 가장 가까운 응급의료기관까지의 직선거리입니다. 도로 거리가 아니고 행정구역 경계는 무시합니다.")
-    st.dataframe(near.drop(columns=["idx", "c_lat", "c_lon"]).sort_values("거리(km)", ascending=False), hide_index=True, width="stretch")
 
 # ---------------------------------------------------------------- 차트 3: 시각별 선그래프 / 차트 4: 등록률
 left, right = st.columns([3, 2])
@@ -299,3 +293,20 @@ st.markdown(f"""
 - **거리** 각 시군구 병·의원 위치(좌표)의 중앙에서 가장 가까운 응급의료기관까지의 직선거리입니다. 도로 거리나 이동 시간이 아니고, 행정구역 경계는 무시합니다.
 - **제외** 약국·구급차 등 의료기관이 아닌 분류, 주소의 시군구가 인구 표와 맞지 않는 병·의원 {meta['hospitals_unmatched_region']}곳, 종료가 시작보다 빠르거나 같은 {meta['invalid_time_cells']}개 요일 칸(미등록 처리).
 """)
+
+# ---------------------------------------------------------------- 응급의료기관이 없는 지역: 가장 가까운 곳까지의 거리
+st.divider()
+st.subheader("응급의료기관이 없는 지역은 어디가 가까울까")
+if near.empty:
+    st.caption("선택한 범위의 시군구에는 모두 응급의료기관이 있습니다.")
+else:
+    st.caption("병·의원 위치의 중앙에서 가장 가까운 응급의료기관까지의 직선거리입니다. 도로 거리나 이동 시간이 아니고 행정구역 경계는 무시합니다.")
+    d = near.sort_values("거리(km)", ascending=False).copy()
+    d["지역"] = d["시도"] + " " + d["시군구"]
+    fig = px.bar(d, x="거리(km)", y="지역", orientation="h", text_auto=".1f", color_discrete_sequence=[ORANGE],
+                 labels={"거리(km)": "가장 가까운 응급의료기관까지 직선거리 (km)", "지역": ""},
+                 hover_data={"가장 가까운 응급의료기관": True, "위치": True, "인구": ":,", "지역": False})
+    fig.update_traces(textposition="outside", cliponaxis=False)
+    fig.update_yaxes(autorange="reversed")
+    st.plotly_chart(tidy(fig, max(200, 30 * len(d) + 90)), use_container_width=True)
+    st.dataframe(d.drop(columns=["지역", "idx", "c_lat", "c_lon"]), hide_index=True, width="stretch")
