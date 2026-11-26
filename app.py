@@ -265,10 +265,26 @@ lines.append(f"전국 시군구 {len(reg)}곳 중 응급의료기관이 없는 �
 for t in lines:
     st.markdown(f"- {t}")
 
+# 우선 점검 후보: 응급의료기관이 없고, 가까운 곳이 10km 이상이며, 선택한 요일·시각에 운영 중 병·의원이 0곳인 시군구(전국)
+far = nearest_er(no_er)
+far = far[far["거리(km)"] >= 10].merge(
+    no_er.assign(시도=no_er["sido"].map(short))[["시도", "sigungu", "n_open"]].rename(columns={"sigungu": "시군구"}), on=["시도", "시군구"])
+cand = far[far["n_open"] == 0].sort_values("거리(km)", ascending=False)
+
 st.markdown("""
 **결론** 평일 낮에 비해 밤과 토요일에는 운영 중으로 등록된 병·의원이 크게 줄고, 지역마다 응급의료기관 수와 줄어드는 정도가 다릅니다.
 이 숫자는 전국 평균과의 *상대 비교*이며, 몇 곳이면 '충분'한지는 이 데이터로 정할 수 없습니다.
+""")
+if cand.empty:
+    st.markdown(f"**우선 점검 후보** 응급의료기관이 없고, 가장 가까운 곳이 10km 이상이며, {day_name} {hour}시에 운영 중인 병·의원도 없는 시군구는 없습니다.")
+else:
+    names = ", ".join(f"{r['시군구']}({r['거리(km)']:.1f}km)" for _, r in cand.iterrows())
+    st.markdown(
+        f"**우선 점검 후보** 응급의료기관이 없고, 가장 가까운 응급의료기관까지 직선거리가 10km 이상이며, "
+        f"{day_name} {hour}시에 운영 중인 병·의원도 없는 시군구는 **{len(cand)}곳**(인구 약 {cand['인구'].sum() / 10000:.1f}만 명)입니다: {names}. "
+        "직선거리이고 이동 시간, 이송 체계, 고령 인구는 반영하지 못해서 실제 지원이 필요한지는 추가 확인이 필요합니다.")
 
+st.markdown("""
 **한계**
 - **일요일·공휴일은 분석하지 못했습니다.** 운영 시간 등록률이 7%, 11%뿐입니다.
 - **미등록 ≠ 휴무.** 토요일에도 미등록 기관이 있어 실제보다 적게 집계될 수 있고, 응급실 24시간 운영과는 별개입니다.
