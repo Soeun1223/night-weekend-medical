@@ -6,6 +6,7 @@
   population.csv  행정안전부 주민등록인구 (시군구)
 """
 import json
+import math
 from pathlib import Path
 
 import pandas as pd
@@ -60,6 +61,23 @@ def tidy(fig, height):
 def hhmm(v):
     h, m = divmod(int(v), 100)
     return f"익일 {h - 24:02d}:{m:02d}" if h >= 24 and v != 2400 else f"{h:02d}:{m:02d}"
+
+
+def nearest_er(rows):
+    """응급의료기관이 없는 시군구(rows)마다 가장 가까운 응급의료기관과 직선거리(km)를 구한다."""
+    cols = ["시도", "시군구", "인구", "가장 가까운 응급의료기관", "위치", "종류", "거리(km)", "idx", "c_lat", "c_lon"]
+    out = []
+    for _, r in rows.iterrows():
+        pts = fac_all[(fac_all["sido"] == r["sido"]) & (fac_all["sigungu"] == r["sigungu"])]
+        if pts.empty:
+            continue
+        lat, lon = pts["lat"].median(), pts["lon"].median()  # 그 시군구 병·의원 위치의 중앙
+        dist = (((emg["lat"] - lat) * 111) ** 2 + ((emg["lon"] - lon) * 111 * math.cos(math.radians(lat))) ** 2) ** 0.5
+        i = dist.idxmin()
+        out.append({"시도": short(r["sido"]), "시군구": r["sigungu"], "인구": int(r["population"]),
+                    "가장 가까운 응급의료기관": emg.loc[i, "name"], "위치": f"{short(emg.loc[i, 'sido'])} {emg.loc[i, 'sigungu']}",
+                    "종류": emg.loc[i, "kind"], "거리(km)": round(dist[i], 1), "idx": i, "c_lat": lat, "c_lon": lon})
+    return pd.DataFrame(out, columns=cols)
 
 
 # ---------------------------------------------------------------- 사이드바 (위젯 5개)
@@ -159,6 +177,16 @@ with right:
     st.caption(f"{level}별 · 낮은 곳부터 · 점선은 전국")
     st.plotly_chart(rate_bar("open_rate", "n_open", BLUE, BLUE_LIGHT, nat_open_rate), use_container_width=True)
 
+# ---------------------------------------------------------------- 응급의료기관이 없는 지역: 가장 가까운 곳까지의 거리
+near = nearest_er(sc[sc["n_er"] == 0])
+near_shown = sigungu != "전체" and len(near) == 1
+st.subheader("응급의료기관이 없는 지역은 어디가 가까울까")
+if near.empty:
+    st.caption("선택한 범위의 시군구에는 모두 응급의료기관이 있습니다.")
+else:
+    st.caption("병·의원 위치의 중앙에서 가장 가까운 응급의료기관까지의 직선거리입니다. 도로 거리가 아니고 행정구역 경계는 무시합니다.")
+    st.dataframe(near.drop(columns=["idx", "c_lat", "c_lon"]).sort_values("거리(km)", ascending=False), hide_index=True, width="stretch")
+
 # ---------------------------------------------------------------- 차트 3: 시각별 선그래프 / 차트 4: 등록률
 left, right = st.columns([3, 2])
 with left:
@@ -191,20 +219,25 @@ with right:
 # ---------------------------------------------------------------- 차트 5: 지도 + 목록
 st.subheader(f"{scope_name}: {day_name} {hour}시에 갈 수 있는 곳")
 open_df = scope_fac[scope_fac["open"]]
+if near_shown:  # 응급의료기관이 없는 시군구를 골랐다면 가장 가까운 곳을 지도에 표시
+    scope_emg = emg.loc[[near.iloc[0]["idx"]]]
+    center_pt = pd.DataFrame([{"name": f"{sigungu} (병·의원 위치의 중앙)", "kind": "선택 지역", "addr": "",
+                               "lat": near.iloc[0]["c_lat"], "lon": near.iloc[0]["c_lon"]}])
 shown = open_df.sample(2000, random_state=0) if len(open_df) > 2000 else open_df  # 점이 너무 많으면 일부만
 pts = pd.concat([
     shown.assign(구분="운영 중 병·의원", 크기=7),
     scope_emg.assign(구분="응급의료기관", 크기=12),
-])
+] + ([center_pt.assign(구분="선택 지역 중심", 크기=9)] if near_shown else []))
 st.caption("파랑 = 운영 중 병·의원, 주황 = 응급의료기관(운영 시간 정보 없음)"
+           + (" · 이 지역에는 응급의료기관이 없어 가장 가까운 곳을 표시" if near_shown else "")
            + (f" · 병·의원 {len(open_df):,}곳 중 2,000곳만 표시" if len(open_df) > 2000 else ""))
 if pts.empty:
     st.info("이 조건에서 지도에 표시할 곳이 없습니다.")
 else:
-    zoom = 5.8 if sido == "전국" else (8.5 if sigungu == "전체" else 11.5)
+    zoom = 5.8 if sido == "전국" else (8.5 if sigungu == "전체" else (10 if near_shown else 11.5))
     center = dict(lat=36.3, lon=127.8) if sido == "전국" else dict(lat=pts["lat"].median(), lon=pts["lon"].median())
     fig = px.scatter_map(pts, lat="lat", lon="lon", color="구분", size="크기", size_max=12, hover_name="name",
-                         color_discrete_map={"운영 중 병·의원": BLUE, "응급의료기관": ORANGE},
+                         color_discrete_map={"운영 중 병·의원": BLUE, "응급의료기관": ORANGE, "선택 지역 중심": "#555555"},
                          hover_data={"kind": True, "addr": True, "lat": False, "lon": False, "크기": False, "구분": False},
                          center=center, zoom=zoom, map_style="open-street-map")
     fig.update_layout(map_bounds=dict(west=123.5, east=132.5, south=32.5, north=39.0))  # 한국 밖으로는 이동·축소 못 하게
@@ -263,5 +296,6 @@ st.markdown(f"""
 - **지역·요일** 지역은 기관 주소의 시도·시군구(일반구가 있는 시는 시 단위, 세종은 한 지역). 요일은 공공데이터포털 명세(`dutyTime1~7` = 월~일, `8` = 공휴일)를 따릅니다.
 - **운영 중** 선택 요일의 시작 ≤ 선택 시각 < 종료. 종료가 24시를 넘으면 다음 날 새벽까지 이어진 것으로 보고 전날 밤 영업도 셉니다(월요일 0~2시는 일요일 자료가 없어 제외).
 - **10만 명당** 기관 수 ÷ 시군구 인구 합 × 100,000. 시도 값은 시군구를 합산해 다시 나눈 값입니다.
+- **거리** 각 시군구 병·의원 위치(좌표)의 중앙에서 가장 가까운 응급의료기관까지의 직선거리입니다. 도로 거리나 이동 시간이 아니고, 행정구역 경계는 무시합니다.
 - **제외** 약국·구급차 등 의료기관이 아닌 분류, 주소의 시군구가 인구 표와 맞지 않는 병·의원 {meta['hospitals_unmatched_region']}곳, 종료가 시작보다 빠르거나 같은 {meta['invalid_time_cells']}개 요일 칸(미등록 처리).
 """)
